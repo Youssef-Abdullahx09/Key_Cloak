@@ -7,7 +7,6 @@ namespace KeyCloakSolution.Controllers;
 
 [ApiController]
 [Route("api/user")]
-[Produces("application/json")]
 public class UserController : ControllerBase
 {
     private readonly IKeycloakTokenService keycloakTokenService;
@@ -44,5 +43,12 @@ public class UserController : ControllerBase
     public IActionResult CheckKeycloakAuthorization()
     {
         return new OkObjectResult(HttpStatusCode.OK);
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpGet]
+    public IActionResult AdminOnly()
+    {
+        return Ok("Admin access granted.");
     }
 }
