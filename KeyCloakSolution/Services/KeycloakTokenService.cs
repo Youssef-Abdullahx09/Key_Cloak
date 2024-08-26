@@ -19,33 +19,42 @@ public class KeycloakTokenService : IKeycloakTokenService
     public async Task<KeycloakTokenResponseDto?> GetTokenResponseAsync(
                 KeycloakUserDto keycloakUserDto)
     {
-        using (var httpClient = _httpClientFactory.CreateClient())
+        try
         {
-
-            var keycloakTokenRequestDto = new KeycloakTokenRequestDto
+            using (var httpClient = _httpClientFactory.CreateClient())
             {
-                GrantType = KeycloakAccessTokenConsts.GrantTypePassword,
-                ClientId = _keycloakSetting.ClientId ??
-                    throw new Exception(nameof(_keycloakSetting.ClientId)),
-                ClientSecret = _keycloakSetting.ClientSecret ??
-                    throw new Exception(nameof(_keycloakSetting.ClientSecret)),
-                Username = keycloakUserDto.Username,
-                Password = keycloakUserDto.Password
-            };
+
+                var keycloakTokenRequestDto = new KeycloakTokenRequestDto
+                {
+                    GrantType = KeycloakAccessTokenConsts.GrantTypePassword,
+                    ClientId = _keycloakSetting.ClientId ??
+                               throw new Exception(nameof(_keycloakSetting.ClientId)),
+                    ClientSecret = _keycloakSetting.ClientSecret ??
+                                   throw new Exception(nameof(_keycloakSetting.ClientSecret)),
+                    Username = keycloakUserDto.Username,
+                    Password = keycloakUserDto.Password
+                };
 
 
-            var tokenRequestBody = KeycloakTokenUtils.GetTokenRequestBody(keycloakTokenRequestDto);
-            var response = await httpClient
-                .PostAsync($"{_keycloakSetting.BaseUrl}/token", tokenRequestBody)
-                .ConfigureAwait(false);
+                var tokenRequestBody = KeycloakTokenUtils.GetTokenRequestBody(keycloakTokenRequestDto);
+                var response = await httpClient
+                    .PostAsync($"{_keycloakSetting.BaseUrl}/token", tokenRequestBody)
+                    .ConfigureAwait(false);
 
 
-            var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-            var keycloakTokenResponseDto = JsonConvert.DeserializeObject<KeycloakTokenResponseDto>(
-                                responseJson);
+                var keycloakTokenResponseDto = JsonConvert.DeserializeObject<KeycloakTokenResponseDto>(
+                    responseJson);
 
-            return keycloakTokenResponseDto;
+                return keycloakTokenResponseDto;
+            }
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            throw;
+        }
+
     }
 }

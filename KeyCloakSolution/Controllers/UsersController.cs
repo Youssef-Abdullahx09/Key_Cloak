@@ -44,5 +44,11 @@ public class UserController : ControllerBase
     public IActionResult CheckKeycloakAuthorization()
     {
         return new OkObjectResult(HttpStatusCode.OK);
+    }  
+    
+    [HttpGet("signin-oidc")]
+    public IActionResult SigninOidc()
+    {
+        return new OkObjectResult(HttpStatusCode.OK);
     }
 }

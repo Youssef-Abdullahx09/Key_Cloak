@@ -5,6 +5,8 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 namespace KeyCloakSolution.ServiceExtensions;
 
@@ -14,46 +16,65 @@ public static class KeyCloakExtension
 
     {
         IdentityModelEventSource.ShowPII = true;
-
-        var base64PublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvei7jcuANpDZz/jbAE9DCDqW7HmE6fM5XCLfTaJ9frBfSqMRqQhxBQm8KWnD0/0hj4ZaYS3McM0FRdo9DdP/MMJCLagxVaCam9Gwe43wjCqmGRGmNoVOhdSNVsfUgMDxOdopegWe2dxfYxThBcVzOB9fdMg5ULLq8VWeAkF9gqEibEnu6Fv0nFTbKCq3BG/PSN+nuDiWFWHk4bluNJkSfwFO85DpiLU9SJkPFksSVXlfW8u0lucl0pRDu+rIIseSspOzbCYDeFUSJ6wzNllWRtICVaclP/VK3Ahd/fmdnnX1Mr6hW0uFAYLR7QNCukyeTQJ/4oKJ1TNOR33CdmhjzwIDAQAB";
-
-        var rsa = CreateRsaProviderFromPublicKey(base64PublicKey);
-
-        builder.Services
-            .AddAuthentication(option =>
+        
+        // builder.Services
+        //     .AddAuthentication(option =>
+        //     {
+        //         option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        //         option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        //         option.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        //     })
+        //     .AddJwtBearer(options =>
+        //     {
+        //         options.MetadataAddress = "http://localhost:8080/realms/Default_Realm/.well-known/openid-configuration";
+        //         options.Authority = "http://localhost:8080/realms/Default_Realm/protocol/openid-connect/auth";
+        //
+        //         options.RequireHttpsMetadata = false;
+        //         
+        //         options.Audience = "account";
+        //         options.TokenValidationParameters = new TokenValidationParameters
+        //         {
+        //             ValidateIssuerSigningKey = true,
+        //             ValidateIssuer = false,
+        //             ValidateAudience = false,
+        //             ValidateLifetime = true,
+        //             RequireExpirationTime = true,
+        //             ClockSkew = TimeSpan.Zero   
+        //         };
+        //     });
+        
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.Authority = "http://localhost:8080/realms/Default_Realm";
+            options.Audience = "account"; 
+            options.RequireHttpsMetadata = false;
+            options.TokenValidationParameters = new TokenValidationParameters
             {
-                option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                option.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                options.Authority = "http://localhost:8080/auth/realms/Cloak_Realm";
-                options.SaveToken = false;
-                options.RequireHttpsMetadata = false;
-                options.Audience = "Cloak_Client";
-
-
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = "http://localhost:8080/realms/Cloak_Realm",
-                    ValidAudience = "Cloak_Client",
-                    IssuerSigningKey = new SymmetricSecurityKey()
-                };
-            });
+                ValidateIssuer = true,
+                ValidIssuer = "http://localhost:8080/realms/Default_Realm",
+                ValidateAudience = true,
+                ValidAudience = "account",
+                ValidateLifetime = true
+            };
+        });
+        
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(builder => builder
+                .AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+            );
+        });
     }
 
-    public static RSA CreateRsaProviderFromPublicKey(string base64PublicKey)
-    {
-        var rsa = RSA.Create();
-        var publicKeyBytes = Convert.FromBase64String(base64PublicKey);
-        rsa.ImportSubjectPublicKeyInfo(publicKeyBytes, out _);
-        return rsa;
-    }
+ 
 
 
     public static IServiceCollection AddFortTeckSwagger(
