@@ -5,8 +5,6 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Authorization;
 
 namespace KeyCloakSolution.ServiceExtensions;
 
@@ -16,65 +14,35 @@ public static class KeyCloakExtension
 
     {
         IdentityModelEventSource.ShowPII = true;
-        
-        // builder.Services
-        //     .AddAuthentication(option =>
-        //     {
-        //         option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        //         option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        //         option.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        //     })
-        //     .AddJwtBearer(options =>
-        //     {
-        //         options.MetadataAddress = "http://localhost:8080/realms/Default_Realm/.well-known/openid-configuration";
-        //         options.Authority = "http://localhost:8080/realms/Default_Realm/protocol/openid-connect/auth";
-        //
-        //         options.RequireHttpsMetadata = false;
-        //         
-        //         options.Audience = "account";
-        //         options.TokenValidationParameters = new TokenValidationParameters
-        //         {
-        //             ValidateIssuerSigningKey = true,
-        //             ValidateIssuer = false,
-        //             ValidateAudience = false,
-        //             ValidateLifetime = true,
-        //             RequireExpirationTime = true,
-        //             ClockSkew = TimeSpan.Zero   
-        //         };
-        //     });
-        
+
         builder.Services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+
         })
-        .AddJwtBearer(options =>
+  .AddJwtBearer(options =>
+  {
+      options.Authority = "http://localhost:8080/realms/MyAppRealm";
+      options.Audience = "account"; 
+      options.RequireHttpsMetadata = false;
+      options.TokenValidationParameters = new TokenValidationParameters
+      {
+          ValidateIssuer = true,
+          ValidIssuer = "http://localhost:8080/realms/MyAppRealm",
+          ValidateAudience = true,
+          ValidAudience = "account",
+          ValidateLifetime = true,
+          RoleClaimType = "roles"
+      };
+  });
+
+        builder.Services.AddAuthorization(options =>
         {
-            options.Authority = "http://localhost:8080/realms/Default_Realm";
-            options.Audience = "account"; 
-            options.RequireHttpsMetadata = false;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = "http://localhost:8080/realms/Default_Realm",
-                ValidateAudience = true,
-                ValidAudience = "account",
-                ValidateLifetime = true
-            };
-        });
-        
-        builder.Services.AddCors(options =>
-        {
-            options.AddDefaultPolicy(builder => builder
-                .AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-            );
+            options.AddPolicy("User", policy => policy.RequireRole("user"));
         });
     }
-
- 
 
 
     public static IServiceCollection AddFortTeckSwagger(
