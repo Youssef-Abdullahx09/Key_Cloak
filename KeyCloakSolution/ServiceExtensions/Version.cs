@@ -14,7 +14,7 @@ public static class Version
         services.AddApiVersioning(delegate (ApiVersioningOptions config)
         {
             config.DefaultApiVersion = new ApiVersion(1, 0);
-            config.AssumeDefaultVersionWhenUnspecified = false;
+            config.AssumeDefaultVersionWhenUnspecified = true;
             config.ReportApiVersions = true;
         });
         services.AddVersionedApiExplorer(delegate (ApiExplorerOptions setup)

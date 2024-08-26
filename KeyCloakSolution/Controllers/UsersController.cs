@@ -51,7 +51,7 @@ public class UserController : ControllerBase
         return new OkObjectResult(HttpStatusCode.OK);
     }
 
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "offline_access")]
     [HttpGet]
     public IActionResult AdminOnly()
     {

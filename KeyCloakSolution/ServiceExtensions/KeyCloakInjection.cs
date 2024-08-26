@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Security.Cryptography;
+using Newtonsoft.Json;
 
 namespace KeyCloakSolution.ServiceExtensions;
 
@@ -16,32 +18,51 @@ public static class KeyCloakExtension
         IdentityModelEventSource.ShowPII = true;
 
         builder.Services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.Authority = "http://localhost:8080/realms/MJ_Tech";
+                options.RequireHttpsMetadata = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = true
+                };
+                
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        var user = context.Principal;
+ 
+                        // Find the realm_access claim, which contains the roles
+                        var realmAccessClaim = user?.FindFirst("realm_access")?.Value;
+ 
+                        if (realmAccessClaim != null)
+                        {
+                            // Parse the realm_access claim (which is JSON) to extract the roles
+                            var realmAccess = JsonConvert.DeserializeObject<RealmAccess>(realmAccessClaim);
+ 
+                            // Convert each role into a Claim of type ClaimTypes.Role
+                            var roleClaims = realmAccess.Roles?.Select(role => new Claim(ClaimTypes.Role, role));
+ 
+                            if (roleClaims != null)
+                            {
+                                var appIdentity = new ClaimsIdentity(roleClaims);
+                                user?.AddIdentity(appIdentity);
+                            }
+                        }
+ 
+                        return Task.CompletedTask;
+                    }
+                };
+            });
 
-        })
-  .AddJwtBearer(options =>
-  {
-      options.Authority = "http://localhost:8080/realms/MyAppRealm";
-      options.Audience = "account"; 
-      options.RequireHttpsMetadata = false;
-      options.TokenValidationParameters = new TokenValidationParameters
-      {
-          ValidateIssuer = true,
-          ValidIssuer = "http://localhost:8080/realms/MyAppRealm",
-          ValidateAudience = true,
-          ValidAudience = "account",
-          ValidateLifetime = true,
-          RoleClaimType = "roles"
-      };
-  });
-
-        builder.Services.AddAuthorization(options =>
-        {
-            options.AddPolicy("User", policy => policy.RequireRole("user"));
-        });
     }
 
 
@@ -54,7 +75,7 @@ public static class KeyCloakExtension
             return services;
         }
 
-        services.AddSwaggerGen(delegate (SwaggerGenOptions option)
+        services.AddSwaggerGen(delegate(SwaggerGenOptions option)
         {
             option.CustomSchemaIds((Type x) => x.FullName);
             option.OperationFilter<SwaggerFileOperationFilter>(Array.Empty<object>());
@@ -72,18 +93,20 @@ public static class KeyCloakExtension
                 BearerFormat = "JWT",
                 Scheme = "Bearer"
             });
-            option.AddSecurityRequirement(new OpenApiSecurityRequirement {
-         {
-             new OpenApiSecurityScheme
-             {
-                 Reference = new OpenApiReference
-                 {
-                     Type = ReferenceType.SecurityScheme,
-                     Id = "Bearer"
-                 }
-             },
-             new string[0]
-         } });
+            option.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    new string[0]
+                }
+            });
         });
         services.ConfigureOptions<ConfigureSwaggerOptions>();
         return services;
@@ -106,7 +129,7 @@ public static class KeyCloakExtension
         }
 
         app.UseSwagger();
-        app.UseSwaggerUI(delegate (SwaggerUIOptions c)
+        app.UseSwaggerUI(delegate(SwaggerUIOptions c)
         {
             int depth = ((!config.HideModels) ? 1 : (-1));
             c.DocExpansion(DocExpansion.None);
