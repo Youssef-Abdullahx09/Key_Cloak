@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -7,6 +8,7 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace KeyCloakSolution.ServiceExtensions;
 
@@ -34,57 +36,105 @@ public static class KeyCloakExtension
                     ValidateLifetime = true
                 };
                 
+                // options.Events = new JwtBearerEvents
+                // {
+                //     OnTokenValidated = context =>
+                //     {
+                //         var claimsIdentity = context.Principal.Identity as ClaimsIdentity;
+                //
+                //         // Get the JWT token
+                //         var token = context.SecurityToken as JwtSecurityToken;
+                //
+                //         // Extract roles from realm_access
+                //         var realmRoles = token?.Claims.FirstOrDefault(c => c.Type == "realm_access")?.Value;
+                //         if (realmRoles != null)
+                //         {
+                //             var realmRolesObj = JObject.Parse(realmRoles);
+                //             foreach (var role in realmRolesObj["roles"])
+                //             {
+                //                 claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, role.ToString()));
+                //             }
+                //         }
+                //
+                //         // Extract roles from resource_access
+                //         var resourceAccess = token?.Claims.FirstOrDefault(c => c.Type == "resource_access")?.Value;
+                //         if (resourceAccess != null)
+                //         {
+                //             var resourceAccessObj = JObject.Parse(resourceAccess);
+                //             foreach (var client in resourceAccessObj)
+                //             {
+                //                 foreach (var role in client.Value["roles"])
+                //                 {
+                //                     claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, $"{client.Key}:{role}"));
+                //                 }
+                //             }
+                //         }
+                //
+                //         return Task.CompletedTask;
+                //     }
+                // };
+                //
                 options.Events = new JwtBearerEvents
                 {
                     OnTokenValidated = context =>
                     {
+                        var claims = new List<Claim>();
                         var user = context.Principal;
- 
+                
                         // Find the realm_access claim, which contains the roles
                         var realmAccessClaim = user?.FindFirst("realm_access")?.Value;
- 
+                
                         if (realmAccessClaim != null)
                         {
                             // Parse the realm_access claim (which is JSON) to extract the roles
                             var realmAccess = JsonConvert.DeserializeObject<RealmAccess>(realmAccessClaim);
- 
+                
                             // Convert each role into a Claim of type ClaimTypes.Role
-                            var roleClaims = realmAccess.Roles?.Select(role => new Claim(ClaimTypes.Role, role));
- 
-                            if (roleClaims != null)
-                            {
-                                var appIdentity = new ClaimsIdentity(roleClaims);
-                                user?.AddIdentity(appIdentity);
-                            }
+                            claims = realmAccess.Roles?.Select(role => new Claim(ClaimTypes.Role, role)).ToList();
                         }
                         
-  
+                
                         // Find the realm_access claim, which contains the roles
                         var resourceAccessClaim = user?.FindFirst("resource_access")?.Value;
- 
+                
                         if (resourceAccessClaim != null)
                         {
                             // Parse the realm_access claim (which is JSON) to extract the roles
-                            var resourceAccess = JsonConvert.DeserializeObject<RealmAccess>(resourceAccessClaim);
- 
+                            var resourceAccess = JsonConvert.DeserializeObject<Dictionary<string, RoleAccess>>(resourceAccessClaim);
+                
                             // Convert each role into a Claim of type ClaimTypes.Role
-                            var roleClaims = resourceAccess.Roles?.Select(role => new Claim(ClaimTypes.Role, role));
- 
-                            if (roleClaims != null)
+                            var roleClaims = resourceAccess?.Values
+                                .SelectMany(x => x.Roles)
+                                .Select(role =>  new Claim(ClaimTypes.Role, role));
+
+                            if (roleClaims is not null)
                             {
-                                var appIdentity = new ClaimsIdentity(roleClaims);
-                                user?.AddIdentity(appIdentity);
+                                claims.AddRange(roleClaims);
+                                
                             }
                         }
- 
+                        
+
+                        var appIdentity = new ClaimsIdentity(claims);
+                        user?.AddIdentity(appIdentity);
+                
                         return Task.CompletedTask;
                     }
                 };
             });
 
     }
+    public class ResourceAccess
+    {
+        [JsonProperty("resource_access")]
+        public Dictionary<string, RoleAccess> Access { get; set; }
+    }
 
-
+    public class RoleAccess
+    {
+        [JsonProperty("roles")]
+        public List<string> Roles { get; set; }
+    }
     public static IServiceCollection AddFortTeckSwagger(
         this IServiceCollection services,
         IConfiguration configuration)

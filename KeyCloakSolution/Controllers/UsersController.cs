@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text;
+using KeyCloakSolution.ServiceExtensions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -43,17 +45,56 @@ public class UserController : ControllerBase
     [HttpGet("check/authorization")]
     public IActionResult CheckKeycloakAuthorization()
     {
+        var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
         return new OkObjectResult(HttpStatusCode.OK);
     }
 
     [HttpGet("signin-oidc")]
     public IActionResult SigninOidc()
     {
+
+        string json = @"{
+    'resource_access': {
+        'realm-management': {
+            'roles': [
+                'view-realm',
+                'manage-users'
+            ]
+        },
+        'Hamoksha': {
+            'roles': [
+                'uma_protection'
+            ]
+        },
+        'app-client': {
+            'roles': [
+                'manage-account'
+            ]
+        },
+        'broker': {
+            'roles': [
+                'read-token'
+            ]
+        },
+        'account': {
+            'roles': [
+                'manage-account',
+                'view-applications',
+                'view-consent'
+            ]
+        }
+    }
+}";
+
+// Deserialize the JSON string into the ResourceAccess object
+        var resourceAccess = JsonConvert.DeserializeObject<KeyCloakExtension.ResourceAccess>(json);
+
+        var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
         return new OkObjectResult(HttpStatusCode.OK);
     }
 
-    [Authorize(Roles = "offline_access")]
-    [HttpGet]
+    [Authorize(Roles = "realm-admin")]
+    [HttpGet("role-based-authorized-end-point")]
     public IActionResult AdminOnly()
     {
         return Ok("Admin access granted.");
@@ -272,31 +313,31 @@ public class UserController : ControllerBase
         }
     }
 
-
-    [HttpGet("GET-USER-ROLES")]
-    public async Task<IActionResult> GetUserRolesAsync(string userId, string adminAccessToken)
-    {
-        string keycloakUrl = "http://localhost:8080";
-        string realmName = "MJ_Tech";
-
-        var rolesEndpoint = $"{keycloakUrl}/admin/realms/{realmName}/users/{userId}/role-mappings/clients/account";
-
-        var request = new HttpRequestMessage(HttpMethod.Get, rolesEndpoint);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminAccessToken);
-
-        using (var _httpClient = new HttpClient())
-        {
-            var response = await _httpClient.SendAsync(request);
-            Console.WriteLine(request);
-            Console.WriteLine(response);
-            response.EnsureSuccessStatusCode();
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var roles = JsonConvert.DeserializeObject<IEnumerable<string>>(responseContent);
-
-            return Ok(roles);
-        }
-    }
+    //
+    // [HttpGet("GET-USER-ROLES")]
+    // public async Task<IActionResult> GetUserRolesAsync(string userId, string adminAccessToken)
+    // {
+    //     string keycloakUrl = "http://localhost:8080";
+    //     string realmName = "MJ_Tech";
+    //
+    //     var rolesEndpoint = $"{keycloakUrl}/admin/realms/{realmName}/users/{userId}/role-mappings/clients/account";
+    //
+    //     var request = new HttpRequestMessage(HttpMethod.Get, rolesEndpoint);
+    //     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminAccessToken);
+    //
+    //     using (var _httpClient = new HttpClient())
+    //     {
+    //         var response = await _httpClient.SendAsync(request);
+    //         Console.WriteLine(request);
+    //         Console.WriteLine(response);
+    //         response.EnsureSuccessStatusCode();
+    //
+    //         var responseContent = await response.Content.ReadAsStringAsync();
+    //         var roles = JsonConvert.DeserializeObject<IEnumerable<string>>(responseContent);
+    //
+    //         return Ok(roles);
+    //     }
+    // }
 
     [HttpGet("Get-Realm-Clients")]
     public async Task<IActionResult> GetRealmClients(string adminAccessToken)
@@ -361,7 +402,7 @@ public class UserController : ControllerBase
             response.EnsureSuccessStatusCode();
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var clients = JsonConvert.DeserializeObject<IEnumerable<RoleRepresentation>>(responseContent);
+            var clients = JsonConvert.DeserializeObject<RoleMappingResponse>(responseContent);
 
             return Ok(clients);
         }
@@ -454,6 +495,26 @@ public class UserController : ControllerBase
     }
 
 
+    public class RoleMappingResponse
+    {
+        [JsonProperty("realmMappings")]
+        public List<RoleRepresentation> RealmMappings { get; set; }
+
+        [JsonProperty("clientMappings")]
+        public Dictionary<string, ClientMapping> ClientMappings { get; set; }
+    }
+
+    public class ClientMapping
+    {
+        [JsonProperty("id")]
+        public string Id { get; set; }
+
+        [JsonProperty("client")]
+        public string Client { get; set; }
+
+        [JsonProperty("mappings")]
+        public List<RoleRepresentation> Mappings { get; set; }
+    }
     public class AddRoleDto
     {
         [JsonProperty("id")] public string? Id { get; set; }
@@ -521,7 +582,7 @@ public class UserController : ControllerBase
 
         [JsonProperty("realm_access")] public RealmAccess RealmAccess { get; set; }
 
-        [JsonProperty("resource_access")] public ResourceAccess ResourceAccess { get; set; }
+        [JsonProperty("resource_access")] public ResourceAccessA ResourceAccessA { get; set; }
 
         [JsonProperty("scope")] public string Scope { get; set; }
 
@@ -551,7 +612,7 @@ public class UserController : ControllerBase
         [JsonProperty("roles")] public List<string> Roles { get; set; }
     }
 
-    public class ResourceAccess
+    public class ResourceAccessA
     {
         [JsonProperty("account")] public Account Account { get; set; }
     }
