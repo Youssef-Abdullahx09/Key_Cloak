@@ -1,5 +1,4 @@
-﻿
-using KeyCloakSolution.Options;
+﻿using KeyCloakSolution.Domain;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
@@ -8,9 +7,9 @@ namespace KeyCloakSolution.Services;
 public class KeycloakTokenService : IKeycloakTokenService
 {
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly KeycloakSetting _keycloakSetting;
+    private readonly KeyCloakSetting _keycloakSetting;
 
-    public KeycloakTokenService(IHttpClientFactory httpClientFactory, IOptions<KeycloakSetting> keycloakSetting)
+    public KeycloakTokenService(IHttpClientFactory httpClientFactory, IOptions<KeyCloakSetting> keycloakSetting)
     {
         _httpClientFactory = httpClientFactory;
         _keycloakSetting = keycloakSetting.Value;
@@ -29,10 +28,9 @@ public class KeycloakTokenService : IKeycloakTokenService
                     throw new Exception(nameof(_keycloakSetting.ClientId)),
                 ClientSecret = _keycloakSetting.ClientSecret ??
                     throw new Exception(nameof(_keycloakSetting.ClientSecret)),
-                Username = keycloakUserDto.Username,
-                Password = keycloakUserDto.Password
+                Username = keycloakUserDto.Username!,
+                Password = keycloakUserDto.Password!
             };
-
 
             var tokenRequestBody = KeycloakTokenUtils.GetTokenRequestBody(keycloakTokenRequestDto);
             var response = await httpClient

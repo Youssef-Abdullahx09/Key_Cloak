@@ -1,6 +1,6 @@
-﻿namespace KeyCloakSolution.Options;
+﻿namespace KeyCloakSolution.Domain;
 
-public class KeycloakSetting
+public class KeyCloakSetting
 {
     public string? BaseUrl { get; set; }
     public string? ClientId { get; set; }

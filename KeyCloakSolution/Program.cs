@@ -1,4 +1,5 @@
-using KeyCloakSolution.Options;
+using KeyCloakSolution.Domain;
+using KeyCloakSolution.Service;
 using KeyCloakSolution.ServiceExtensions;
 using KeyCloakSolution.Services;
 
@@ -8,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-builder.Services.Configure<KeycloakSetting>(builder.Configuration.GetSection(nameof(KeycloakSetting)));
+builder.Services.Configure<KeyCloakSetting>(builder.Configuration.GetSection(nameof(KeyCloakSetting)));
 builder.AddKeycloak();
 builder.Services.AddFortTeckApiVersioning();
 
@@ -19,6 +20,8 @@ builder.Services.AddFortTeckSwagger(builder.Configuration);
 
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IKeycloakTokenService, KeycloakTokenService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<IHttpContextAccessor,HttpContextAccessor>();
 
 var app = builder.Build();
 

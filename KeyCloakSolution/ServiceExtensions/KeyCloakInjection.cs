@@ -2,8 +2,10 @@
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace KeyCloakSolution.ServiceExtensions;
@@ -35,6 +37,33 @@ public static class KeyCloakExtension
           ValidAudience = "account",
           ValidateLifetime = true,
           RoleClaimType = "roles"
+      };
+      options.Events = new JwtBearerEvents
+      {
+          OnTokenValidated = context =>
+          {
+              var user = context.Principal;
+
+              // Find the realm_access claim, which contains the roles
+              var realmAccessClaim = user?.FindFirst("realm_access")?.Value;
+
+              if (realmAccessClaim != null)
+              {
+                  // Parse the realm_access claim (which is JSON) to extract the roles
+                  var realmAccess = JsonConvert.DeserializeObject<RealmAccess>(realmAccessClaim);
+
+                  // Convert each role into a Claim of type ClaimTypes.Role
+                  var roleClaims = realmAccess.Roles?.Select(role => new Claim(ClaimTypes.Role, role));
+
+                  if (roleClaims != null)
+                  {
+                      var appIdentity = new ClaimsIdentity(roleClaims);
+                      user?.AddIdentity(appIdentity);
+                  }
+              }
+
+              return Task.CompletedTask;
+          }
       };
   });
 
