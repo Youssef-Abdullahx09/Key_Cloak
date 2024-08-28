@@ -57,6 +57,25 @@ public static class KeyCloakExtension
                                 user?.AddIdentity(appIdentity);
                             }
                         }
+                        
+  
+                        // Find the realm_access claim, which contains the roles
+                        var resourceAccessClaim = user?.FindFirst("resource_access")?.Value;
+ 
+                        if (resourceAccessClaim != null)
+                        {
+                            // Parse the realm_access claim (which is JSON) to extract the roles
+                            var resourceAccess = JsonConvert.DeserializeObject<RealmAccess>(resourceAccessClaim);
+ 
+                            // Convert each role into a Claim of type ClaimTypes.Role
+                            var roleClaims = resourceAccess.Roles?.Select(role => new Claim(ClaimTypes.Role, role));
+ 
+                            if (roleClaims != null)
+                            {
+                                var appIdentity = new ClaimsIdentity(roleClaims);
+                                user?.AddIdentity(appIdentity);
+                            }
+                        }
  
                         return Task.CompletedTask;
                     }
