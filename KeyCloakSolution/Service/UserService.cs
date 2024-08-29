@@ -1,5 +1,4 @@
 ﻿using KeyCloakSolution.Domain;
-using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -206,5 +205,91 @@ public class UserService : IUserService
         }
 
         Console.WriteLine("User updated successfully.");
+    }
+
+
+    public async Task<bool> SendPasswordResetEmailAsync(string userId)
+    {
+        var token = GetTokenFromHeaders();
+        var url = $"{keyCloakBaseUrl}/admin/realms/{realm}/users/{userId}/execute-actions-email";
+        var actions = new[] { "UPDATE_PASSWORD" };
+        var content = new StringContent(JsonSerializer.Serialize(actions), Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Put, url)
+        {
+            Content = content,
+        };
+
+        // Add the Bearer token for authentication
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Send the request
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var responseContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to update user: {responseContent}");
+        }
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<int> Count()
+    {
+        var accessToken =  GetTokenFromHeaders();
+        var requestUrl = $"{keyCloakBaseUrl}/admin/realms/{realm}/users/count";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await _httpClient.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            var userCount = int.Parse(content);
+            return userCount;
+        }
+
+        throw new HttpRequestException($"Failed to retrieve user count: {response.StatusCode}");
+
+    }
+
+    public async Task<bool> ResetPassword(string newPassword,string userId)
+    {
+        var accessToken = GetTokenFromHeaders();
+        var requestUrl = $"{keyCloakBaseUrl}/admin/realms/{realm}/users/{userId}/reset-password-email";
+        var passwordRepresentation = new
+        {
+            type = "password",
+            value = newPassword,
+            temporary = false // Set to true if you want the password to be temporary
+        };
+        var content = new StringContent(JsonSerializer.Serialize(passwordRepresentation), Encoding.UTF8, "application/json");
+        var request = new HttpRequestMessage(HttpMethod.Put, requestUrl)
+        {
+            Content = content
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var responseContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to update user: {responseContent}");
+        }
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> VerifyEmail(string userId)
+    {
+        var accessToken = GetTokenFromHeaders();
+        var requestUrl = $"{keyCloakBaseUrl}/admin/realms/{realm}/users/{userId}/send-verify-email";
+        var request = new HttpRequestMessage(HttpMethod.Put, requestUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var responseContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to update user: {responseContent}");
+        }
+        return response.IsSuccessStatusCode;
     }
 }

@@ -104,6 +104,14 @@ public class UserController : ControllerBase
         return Ok(users);
 
     }
+    [Authorize(Roles = "admin")]
+    [HttpGet("Count")]
+    public async Task<IActionResult> UserCount()
+    {
+        var users = await _userService.Count();
+        return Ok(users);
+
+    }
 
 
 
@@ -138,5 +146,52 @@ public class UserController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "admin")]
+    [HttpPut("SendSetPasswordEmail/{userId}")]
+
+    public async Task<IActionResult> SendPasswordResetEmail(string userId)
+    {
+        try
+        {
+            var result = await _userService.SendPasswordResetEmailAsync(userId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return BadRequest($"Error: {ex.Message}");
+        }
+    }
+
+    [Authorize]
+    [HttpPut("{userId}/reset-password")]
+    public async Task<IActionResult> SetPassword(string userId, [FromBody] string newPassword)
+    {
+        try
+        {
+            var result = await _userService.ResetPassword(newPassword,userId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return BadRequest($"Error: {ex.Message}");
+        }
+    }
+    [Authorize]
+    [HttpPut("VerifyEmail/{userId}")]
+    public async Task<IActionResult> VerifyEmail(string userId)
+    {
+        try
+        {
+            var result = await _userService.VerifyEmail(userId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            return BadRequest($"Error: {ex.Message}");
+        }
+    }
 
 }
