@@ -18,9 +18,10 @@ public class KeycloakTokenService : IKeycloakTokenService
     public async Task<KeycloakTokenResponseDto?> GetTokenResponseAsync(
                 KeycloakUserDto keycloakUserDto)
     {
-        using (var httpClient = _httpClientFactory.CreateClient())
+        try
         {
-
+            using (var httpClient = _httpClientFactory.CreateClient())
+            {
             var keycloakTokenRequestDto = new KeycloakTokenRequestDto
             {
                 GrantType = KeycloakAccessTokenConsts.GrantTypePassword,
@@ -37,13 +38,18 @@ public class KeycloakTokenService : IKeycloakTokenService
                 .PostAsync($"{_keycloakSetting.BaseUrl}/token", tokenRequestBody)
                 .ConfigureAwait(false);
 
+                var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-            var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var keycloakTokenResponseDto = JsonConvert.DeserializeObject<KeycloakTokenResponseDto>(
+                    responseJson);
 
-            var keycloakTokenResponseDto = JsonConvert.DeserializeObject<KeycloakTokenResponseDto>(
-                                responseJson);
-
-            return keycloakTokenResponseDto;
+                return keycloakTokenResponseDto;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            throw;
         }
     }
 }

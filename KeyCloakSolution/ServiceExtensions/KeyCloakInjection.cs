@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -7,6 +9,8 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace KeyCloakSolution.ServiceExtensions;
 
@@ -22,12 +26,11 @@ public static class KeyCloakExtension
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-
         })
   .AddJwtBearer(options =>
   {
       options.Authority = "http://localhost:8080/realms/MyAppRealm";
-      options.Audience = "account"; 
+      options.Audience = "account";
       options.RequireHttpsMetadata = false;
       options.TokenValidationParameters = new TokenValidationParameters
       {
@@ -66,14 +69,18 @@ public static class KeyCloakExtension
           }
       };
   });
-
-        builder.Services.AddAuthorization(options =>
-        {
-            options.AddPolicy("User", policy => policy.RequireRole("user"));
-        });
+    }
+    public class ResourceAccess
+    {
+        [JsonProperty("resource_access")]
+        public Dictionary<string, RoleAccess> Access { get; set; }
     }
 
-
+    public class RoleAccess
+    {
+        [JsonProperty("roles")]
+        public List<string> Roles { get; set; }
+    }
     public static IServiceCollection AddFortTeckSwagger(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -83,7 +90,7 @@ public static class KeyCloakExtension
             return services;
         }
 
-        services.AddSwaggerGen(delegate (SwaggerGenOptions option)
+        services.AddSwaggerGen(delegate(SwaggerGenOptions option)
         {
             option.CustomSchemaIds((Type x) => x.FullName);
             option.OperationFilter<SwaggerFileOperationFilter>(Array.Empty<object>());
@@ -101,18 +108,20 @@ public static class KeyCloakExtension
                 BearerFormat = "JWT",
                 Scheme = "Bearer"
             });
-            option.AddSecurityRequirement(new OpenApiSecurityRequirement {
-         {
-             new OpenApiSecurityScheme
-             {
-                 Reference = new OpenApiReference
-                 {
-                     Type = ReferenceType.SecurityScheme,
-                     Id = "Bearer"
-                 }
-             },
-             new string[0]
-         } });
+            option.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    new string[0]
+                }
+            });
         });
         services.ConfigureOptions<ConfigureSwaggerOptions>();
         return services;
@@ -135,7 +144,7 @@ public static class KeyCloakExtension
         }
 
         app.UseSwagger();
-        app.UseSwaggerUI(delegate (SwaggerUIOptions c)
+        app.UseSwaggerUI(delegate(SwaggerUIOptions c)
         {
             int depth = ((!config.HideModels) ? 1 : (-1));
             c.DocExpansion(DocExpansion.None);
