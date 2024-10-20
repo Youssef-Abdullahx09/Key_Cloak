@@ -20,14 +20,11 @@ public class UserController : ControllerBase
         _userService = userService;
     }
 
-
-
     [HttpPost("token")]
     public async Task<IActionResult> AuthorizeAsync([FromBody] KeycloakUserDto keycloakUserDto)
     {
         try
         {
-
             var response = await keycloakTokenService
                 .GetTokenResponseAsync(keycloakUserDto)
                 .ConfigureAwait(false);
@@ -44,6 +41,10 @@ public class UserController : ControllerBase
     [HttpGet("check/authorization")]
     public IActionResult CheckKeycloakAuthorization()
     {
+        User.Claims.ToList().ForEach(claim =>
+        {
+            Console.WriteLine($"Claim Type: {claim.Type} - Claim Value: {claim.Value}");
+        });
         return new OkObjectResult(HttpStatusCode.OK);
     }
 
@@ -53,9 +54,10 @@ public class UserController : ControllerBase
     {
         return Ok("Admin access granted.");
     }
+
     [Authorize(Roles = "admin")]
     [HttpPost]
-    public async Task<IActionResult> CreateUser([FromBody]CreateUserDto userDto)
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserDto userDto)
     {
         var user = new User
         {
@@ -85,9 +87,8 @@ public class UserController : ControllerBase
     {
         try
         {
-          await _userService.Update(userDto,userId);
-        return Ok("User updated successfully.");
-
+            await _userService.Update(userDto, userId);
+            return Ok("User updated successfully.");
         }
         catch (Exception ex)
         {
@@ -98,22 +99,19 @@ public class UserController : ControllerBase
 
     [Authorize(Roles = "admin")]
     [HttpGet("GetUsers")]
-    public async Task<IActionResult> GetUsers([FromQuery] FilterDto filterDto )
+    public async Task<IActionResult> GetUsers([FromQuery] FilterDto filterDto)
     {
         var users = await _userService.Get(filterDto);
         return Ok(users);
-
     }
+
     [Authorize(Roles = "admin")]
     [HttpGet("Count")]
     public async Task<IActionResult> UserCount()
     {
         var users = await _userService.Count();
         return Ok(users);
-
     }
-
-
 
     [Authorize(Roles = "admin")]
     [HttpGet("GetById")]
@@ -121,7 +119,6 @@ public class UserController : ControllerBase
     {
         var users = await _userService.GetById(userId);
         return Ok(users);
-
     }
 
     [Authorize(Roles = "admin")]
@@ -148,7 +145,6 @@ public class UserController : ControllerBase
 
     [Authorize(Roles = "admin")]
     [HttpPut("SendSetPasswordEmail/{userId}")]
-
     public async Task<IActionResult> SendPasswordResetEmail(string userId)
     {
         try
@@ -169,7 +165,7 @@ public class UserController : ControllerBase
     {
         try
         {
-            var result = await _userService.ResetPassword(newPassword,userId);
+            var result = await _userService.ResetPassword(newPassword, userId);
             return Ok(result);
         }
         catch (Exception ex)
@@ -178,6 +174,7 @@ public class UserController : ControllerBase
             return BadRequest($"Error: {ex.Message}");
         }
     }
+
     [Authorize]
     [HttpPut("VerifyEmail/{userId}")]
     public async Task<IActionResult> VerifyEmail(string userId)
@@ -193,5 +190,4 @@ public class UserController : ControllerBase
             return BadRequest($"Error: {ex.Message}");
         }
     }
-
 }

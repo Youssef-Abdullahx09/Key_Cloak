@@ -1,3 +1,5 @@
+using FastEndpoints;
+using FastEndpoints.Swagger;
 using KeyCloakSolution.Domain;
 using KeyCloakSolution.Service;
 using KeyCloakSolution.ServiceExtensions;
@@ -16,7 +18,8 @@ builder.Services.AddFortTeckApiVersioning();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddFortTeckSwagger(builder.Configuration);
-
+builder.Services.AddFastEndpoints();
+builder.Services.AddSwaggerGen(); //add this
 
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IKeycloakTokenService, KeycloakTokenService>();
@@ -24,14 +27,10 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<IHttpContextAccessor,HttpContextAccessor>();
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseFastEndpoints()
+   .UseSwaggerGen(); //add this
 app.UseHttpsRedirection();
 
 app.UseAuthentication();

@@ -253,30 +253,40 @@ public class UserService : IUserService
 
     }
 
-    public async Task<bool> ResetPassword(string newPassword,string userId)
+    public async Task<bool> ResetPassword(string newPassword, string userId)
     {
-        var accessToken = GetTokenFromHeaders();
-        var requestUrl = $"{keyCloakBaseUrl}/admin/realms/{realm}/users/{userId}/reset-password-email";
+        var accessToken = GetTokenFromHeaders(); // Method to retrieve access token from headers
+        var requestUrl = $"{keyCloakBaseUrl}/admin/realms/{realm}/users/{userId}/reset-password"; // Correct endpoint for password reset
+
+        // Payload for the new password
         var passwordRepresentation = new
         {
             type = "password",
             value = newPassword,
-            temporary = false // Set to true if you want the password to be temporary
+            temporary = false // Set to true if the password should be temporary
         };
+
+        // Serialize the payload and create the request
         var content = new StringContent(JsonSerializer.Serialize(passwordRepresentation), Encoding.UTF8, "application/json");
         var request = new HttpRequestMessage(HttpMethod.Put, requestUrl)
         {
             Content = content
         };
+
+        // Add the Authorization header
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // Send the request and handle the response
         var response = await _httpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
             var responseContent = await response.Content.ReadAsStringAsync();
-            throw new Exception($"Failed to update user: {responseContent}");
+            throw new Exception($"Failed to update user password: {responseContent}");
         }
+
         return response.IsSuccessStatusCode;
     }
+
 
     public async Task<bool> VerifyEmail(string userId)
     {
